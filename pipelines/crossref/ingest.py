@@ -1,7 +1,6 @@
 import datetime
 import json
 import logging
-
 import dlt
 from pyspark.sql.functions import current_timestamp
 from pyspark.sql.types import StructType, StructField, StringType
@@ -10,12 +9,16 @@ import requests
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Define the schema for the raw data
 raw_crossref_schema = StructType([
     StructField("doi", StringType(), True),
     StructField("message", StringType(), True)
 ])
 
 def fetch_recent_crossref_data(yesterday, cursor=None):
+    """
+    Fetch recent Crossref data using the API.
+    """
     url = "https://api.crossref.org/works"
     params = {
         "filter": f"from-index-date:{yesterday},until-index-date:{yesterday}",
@@ -24,58 +27,56 @@ def fetch_recent_crossref_data(yesterday, cursor=None):
         "sort": "indexed",
         "order": "desc"
     }
-    response = requests.get(url, params=params)
+    response = requests.get(url, params=params, timeout=60)
     response.raise_for_status()
     return response.json()
 
+def crossref_data_generator(yesterday):
+    """
+    Generator function that yields batches of data from Crossref API.
+    """
+    cursor = None
+    total_rows = 0
+
+    while True:
+        # Fetch the next batch of data from Crossref
+        data = fetch_recent_crossref_data(yesterday, cursor)
+        items = data.get("message", {}).get("items", [])
+
+        if not items:
+            logger.info("No more items to fetch.")
+            break
+
+        logger.info(f"Fetched {len(items)} rows. Total rows fetched: {total_rows + len(items)}")
+
+        yield [(item['DOI'], json.dumps(item)) for item in items]
+
+        total_rows += len(items)
+
+        # Update the cursor for pagination
+        cursor = data.get("message", {}).get("next-cursor")
+        if not cursor:
+            logger.info("No more pages to fetch.")
+            break
+
 @dlt.table(
-    comment="Raw Crossref works data",
+    comment="Raw Crossref works data (generator-based)",
     table_properties={"quality": "bronze"}
 )
 def crossref_raw_data():
-    cursor = None
-    total_rows = 0
-    batch_size = 500
+    """
+    Create the Delta table by fetching data from Crossref incrementally
+    using a generator. The generator yields batches of data, and we return
+    a DataFrame that contains the full result at the end of processing.
+    """
     yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
-    batch_data = []
+    all_data = []
 
-    while True:
-        data = fetch_recent_crossref_data(yesterday, cursor)
-        items = data.get("message", {}).get("items", [])
-        rows_this_page = len(items)
+    for batch_data in crossref_data_generator(yesterday):
+        all_data.extend(batch_data)
 
-        if rows_this_page == 0:
-            logger.info("No more items to fetch.")
-            break
+    df = spark.createDataFrame(all_data, schema=raw_crossref_schema) \
+        .withColumn("ingestion_timestamp", current_timestamp())
 
-        for item in items:
-            batch_data.append((item['DOI'], json.dumps(item)))
-            total_rows += 1
-
-            # process batch if we have reached batch size
-            if len(batch_data) >= batch_size:
-                logger.info(f"Processing batch with {len(batch_data)} rows. Total rows processed: {total_rows}")
-
-                # create DataFrame for the batch
-                df = spark.createDataFrame(batch_data, schema=raw_crossref_schema) \
-                    .withColumn("ingestion_timestamp", current_timestamp())
-
-                batch_data.clear()
-
-                return df
-
-        cursor = data.get("message", {}).get("next-cursor")
-        if cursor is None or len(items) == 0:
-            logger.info("No more items to fetch.")
-            break
-
-    # process the remaining data if there are leftover rows in the last small batch
-    if batch_data:
-        logger.info(f"Processing the final small batch with {len(batch_data)} rows. Total rows processed: {total_rows}")
-
-        # Create DataFrame for the final batch
-        df = spark.createDataFrame(batch_data, schema=raw_crossref_schema) \
-            .withColumn("ingestion_timestamp", current_timestamp())
-
-        return df
+    return df

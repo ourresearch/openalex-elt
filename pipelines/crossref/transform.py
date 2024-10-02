@@ -5,6 +5,7 @@ import dlt
 from pyspark.sql.functions import from_json, col
 
 sys.path.append('/Workspace/Shared/openalex-elt/common')
+sys.path.append('/Workspace/Shared/openalex-elt/pipelines/crossref')
 
 from schemas import Author, CommonWork, spark_common_work_schema
 from mapping import crossref_schema, map_crossref_to_common_work
