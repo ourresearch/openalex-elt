@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 
-from common.schemas import Author, CommonWork
+from common_schema import Author, CommonWork
 
 crossref_schema = StructType([
     StructField("DOI", StringType(), True),

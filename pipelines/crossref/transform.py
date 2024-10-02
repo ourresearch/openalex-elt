@@ -3,7 +3,7 @@ import logging
 import dlt
 from pyspark.sql.functions import from_json, col
 
-from common.schemas import spark_common_work_schema
+from common_schema import spark_common_work_schema
 from mapping import crossref_schema, map_crossref_to_common_work
 
 
