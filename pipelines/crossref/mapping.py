@@ -1,9 +1,12 @@
 from dataclasses import asdict
 from datetime import datetime
+import sys
 
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 
-from common_schema import Author, CommonWork
+sys.path.append('/Workspace/Shared/openalex-elt/common')
+
+from schemas import Author, CommonWork
 
 crossref_schema = StructType([
     StructField("DOI", StringType(), True),
