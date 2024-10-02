@@ -1,0 +1,6 @@
+.idea/
+.env
+crossref_raw_data/
+crossref_transformed_data/
+crossref_transformed_data_json/
+__pycache__/
