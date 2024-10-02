@@ -2,7 +2,6 @@ from dataclasses import asdict
 from datetime import datetime
 
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType
-import shortuuid
 
 from common.schemas import Author, CommonWork
 
@@ -18,7 +17,6 @@ crossref_schema = StructType([
 
 
 def map_crossref_to_common_work(row):
-    record_id = shortuuid.uuid()
     created_at = datetime.now().isoformat()
     updated_at = created_at
 
@@ -35,7 +33,6 @@ def map_crossref_to_common_work(row):
 
     # create a CommonWork instance
     common_work = CommonWork(
-        id=record_id,
         title=title,
         doi=row['DOI'],
         type=row['type'],

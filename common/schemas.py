@@ -27,7 +27,6 @@ class Author:
 
 @dataclass
 class CommonWork:
-    id: str
     title: Optional[str] = None
     doi: Optional[str] = None
     type: Optional[str] = None
