@@ -1,11 +1,8 @@
-from datetime import datetime
-from dataclasses import dataclass, field, asdict
 import logging
-from typing import List, Optional
+
 import dlt
-from pyspark.sql.functions import from_json, col, struct, udf
+from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType, IntegerType
-from pyspark.sql import Row
 import pyspark.sql.functions as F
 
 logging.basicConfig(level=logging.INFO)
@@ -23,19 +20,6 @@ crossref_schema = StructType([
     ])), True),
     StructField("abstract", StringType(), True),
     StructField("type", StringType(), True)
-])
-
-spark_common_work_schema = StructType([
-    StructField("title", StringType(), True),
-    StructField("doi", StringType(), True),
-    StructField("type", StringType(), True),
-    StructField("authors", ArrayType(StructType([
-        StructField("given", StringType(), True),
-        StructField("family", StringType(), True),
-        StructField("sequence", IntegerType(), True)
-    ])), True),
-    StructField("created", StringType(), False),
-    StructField("updated", StringType(), False)
 ])
 
 class CrossrefWork:
