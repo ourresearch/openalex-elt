@@ -58,6 +58,7 @@ def crossref_data_generator(yesterday):
         if not cursor:
             logger.info("No more pages to fetch.")
             break
+        break
 
 @dlt.table(
     comment="Raw Crossref works data (generator-based)",

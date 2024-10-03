@@ -4,8 +4,6 @@ import sys
 
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 
-sys.path.append('/Workspace/Shared/openalex-elt/common')
-
 from schemas import Author, CommonWork
 
 crossref_schema = StructType([
