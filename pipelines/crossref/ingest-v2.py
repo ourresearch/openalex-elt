@@ -30,13 +30,12 @@ crossref_schema = StructType([
     name="crossref_landing_zone_v2",
     comment="Landing zone for new Crossref data ingested from S3"
 )
-def read_landing_zone():
+def crossref_landing_zone_v2():
     s3_bucket_path = "s3a://openalex-sandbox/openalex-elt/crossref/"
     df = (
-        spark.read.format("cloudFiles")
+        spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "json")
         .option("cloudFiles.schemaLocation", "dbfs:/pipelines/crossref/schema")
-        .option("cloudFiles.schemaEvolutionMode", "addNewColumns")
         .schema(crossref_schema)
         .load(s3_bucket_path)
     )
@@ -44,22 +43,15 @@ def read_landing_zone():
 
 
 @dlt.table(
-    name="crossref_raw_data",
+    name="raw_crossref_data_v2",
     comment="Accumulated Crossref data with unique DOI and indexed_date pairs"
 )
-def crossref_raw_data_v2():
-    df_new = dlt.read("crossref_landing_zone_v2")
-    df_new = df_new.withColumn("indexed_date", col("indexed.date-time"))
-
-    df_new = df_new.dropDuplicates(["DOI", "indexed_date"])
-
-    if spark.catalog._jcatalog.tableExists('dlt.crossref_raw_data_v2'):
-        df_existing = dlt.read("crossref_raw_data_v2")
-    else:
-        df_existing = spark.createDataFrame([], df_new.schema)
-
-    df_combined = df_existing.unionByName(df_new)
-
-    df_combined = df_combined.dropDuplicates(["DOI", "indexed_date"])
-
-    return df_combined
+def raw_crossref_data_v2():
+    df = dlt.read_stream("crossref_landing_zone_v2")
+    
+    df = df.withColumn("indexed_date", col("indexed.date-time"))
+    
+    return (
+        df.dropDuplicates(["DOI", "indexed_date"])
+        .select("DOI", "title", "author", "abstract", "type", "indexed", "created", "deposited", "indexed_date")
+    )

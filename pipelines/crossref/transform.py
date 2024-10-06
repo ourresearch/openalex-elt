@@ -32,7 +32,8 @@ class CrossrefWork:
             "doi": "DOI",
             "title": "title",
             "type": "type",
-            "authors": "author"
+            "authors": "author",
+            "abstract": "abstract"
         }
 
     def set_root_fields(self):

@@ -7,7 +7,7 @@ from pyspark.sql.functions import row_number, col
     comment="Transformed Crossref data with deduplication"
 )
 @dlt.expect_or_drop("valid_DOI", "DOI IS NOT NULL")
-def transform_data_v2():
+def crossref_works_v2():
     df = dlt.read("raw_crossref_data_v2")
 
     # deduplicate by DOI, keeping the most recent indexed date DOI
