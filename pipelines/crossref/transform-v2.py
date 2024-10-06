@@ -42,11 +42,7 @@ def crossref_works_v2():
                 F.lit("affiliations"),
                 F.transform(
                     author["affiliation"],
-                    lambda aff: F.create_map(
-                        F.lit("name"), aff["name"],
-                        F.lit("ror_id"),
-                        F.expr("element_at(filter(aff.id, x -> x.`id-type` = 'ROR'), 1).id")
-                    )
+                    lambda aff: aff["name"]
                 )
             )
         )
