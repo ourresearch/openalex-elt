@@ -24,7 +24,7 @@ def crossref_works_v2():
         .withColumn("type", F.col("type"))
         .withColumn("abstract", F.col("abstract"))
         .withColumn("publisher", F.col("publisher"))
-        .withColumn("source_name", F.expr("element_at(container-title, 1)"))
+        .withColumn("source_name", F.expr("element_at(`container-title`, 1)"))
         .withColumn("source_issns", F.col("ISSN"))
     )
 
