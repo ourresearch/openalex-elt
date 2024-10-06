@@ -30,6 +30,9 @@ crossref_schema = StructType([
     ]), True),
     StructField("created", StructType([
         StructField("date-time", TimestampType(), True)
+    ]), True),
+    StructField("deposited", StructType([
+        StructField("date-time", TimestampType(), True)
     ]), True)
 ])
 

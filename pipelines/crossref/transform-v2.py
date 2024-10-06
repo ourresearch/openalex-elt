@@ -41,14 +41,16 @@ def crossref_works_v2():
                 F.lit("name"),
                 x["name"],
                 F.lit("ORCID"),
-                x["ORCID"]
+                x["ORCID"],
             ),
         ),
     ).drop("author")
 
     # set timestamps
-    df_deduped = df_deduped.withColumn(
-        "updated_date", F.col("indexed.date-time")
-    ).withColumn("created_date", F.col("created.date-time"))
+    df_deduped = (
+        df_deduped.withColumn("updated_date", F.col("indexed.date-time"))
+        .withColumn("created_date", F.col("created.date-time"))
+        .withColumn("deposited_date", F.col("deposited.date-time"))
+    )
 
     return df_deduped
