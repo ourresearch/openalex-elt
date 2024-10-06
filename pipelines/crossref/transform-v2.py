@@ -24,8 +24,9 @@ def crossref_works_v2():
         .withColumn("type", F.col("type"))
         .withColumn("abstract", F.col("abstract"))
         .withColumn("publisher", F.col("publisher"))
-        .withColumn("source_name", F.expr("element_at(`container-title`, 1)"))
+        .withColumn("source_name", F.lower(F.expr("element_at(`container-title`, 1)")))
         .withColumn("source_issns", F.col("ISSN"))
+        .drop("container-title", "ISSN")
     )
 
     # set authors
@@ -51,6 +52,22 @@ def crossref_works_v2():
         df_deduped.withColumn("updated_date", F.col("indexed.date-time"))
         .withColumn("created_date", F.col("created.date-time"))
         .withColumn("deposited_date", F.col("deposited.date-time"))
+        .drop("indexed", "created", "deposited")
+    )
+
+    # reorder columns
+    df_deduped = df_deduped.select(
+        "doi",
+        "title",
+        "type",
+        "authors",
+        "publisher",
+        "source_name",
+        "source_issns",
+        "abstract",
+        "deposited_date",
+        "updated_date",
+        "created_date",
     )
 
     return df_deduped
