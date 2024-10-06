@@ -34,16 +34,12 @@ def crossref_works_v2():
         "authors",
         F.transform(
             "author",
-            lambda author: F.create_map(
-                F.lit("given"), author["given"],
-                F.lit("family"), author["family"],
-                F.lit("name"), author["name"],
-                F.lit("ORCID"), author["ORCID"],
-                F.lit("affiliations"),
-                F.transform(
-                    author["affiliation"],
-                    lambda aff: aff["name"]
-                )
+            lambda author: F.struct(
+                author["given"].alias("given"),
+                author["family"].alias("family"),
+                author["name"].alias("name"),
+                author["ORCID"].alias("ORCID"),
+                F.transform(author["affiliation"], lambda aff: aff["name"]).alias("affiliations")
             )
         )
     ).drop("author")
