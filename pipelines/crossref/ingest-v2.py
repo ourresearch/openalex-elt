@@ -9,18 +9,26 @@ crossref_schema = StructType([
         StructField("name", StringType(), True),
         StructField("family", StringType(), True),
         StructField("given", StringType(), True),
-        StructField("ORCID", StringType(), True)
+        StructField("ORCID", StringType(), True),
+        StructField("affiliation", ArrayType(StructType([
+            StructField("name", StringType(), True),
+            StructField("id", ArrayType(StructType([
+                StructField("id", StringType(), True),
+                StructField("id-type", StringType(), True),
+                StructField("asserted-by", StringType(), True)
+            ])), True)
+        ])), True)
     ])), True),
     StructField("abstract", StringType(), True),
     StructField("type", StringType(), True),
+    StructField("publisher", StringType(), True),
+    StructField("container-title", ArrayType(StringType()), True),
+    StructField("ISSN", ArrayType(StringType()), True),
     # Include timestamp fields
     StructField("indexed", StructType([
         StructField("date-time", TimestampType(), True)
     ]), True),
     StructField("created", StructType([
-        StructField("date-time", TimestampType(), True)
-    ]), True),
-    StructField("deposited", StructType([
         StructField("date-time", TimestampType(), True)
     ]), True)
 ])
