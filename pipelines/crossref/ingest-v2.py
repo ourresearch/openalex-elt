@@ -43,15 +43,12 @@ def crossref_landing_zone_v2():
 
 
 @dlt.table(
-    name="raw_crossref_data_v2",
+    name="crossref_raw_data_v2",
     comment="Accumulated Crossref data with unique DOI and indexed_date pairs"
 )
-def raw_crossref_data_v2():
+def crossref_raw_data_v2():
     df = dlt.read_stream("crossref_landing_zone_v2")
     
     df = df.withColumn("indexed_date", col("indexed.date-time"))
     
-    return (
-        df.dropDuplicates(["DOI", "indexed_date"])
-        .select("DOI", "title", "author", "abstract", "type", "indexed", "created", "deposited", "indexed_date")
-    )
+    return df.dropDuplicates(["DOI", "indexed_date"]).drop("indexed_date")
