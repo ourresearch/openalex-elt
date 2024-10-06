@@ -34,17 +34,22 @@ def crossref_works_v2():
         "authors",
         F.transform(
             "author",
-            lambda x: F.create_map(
-                F.lit("given"),
-                x["given"],
-                F.lit("family"),
-                x["family"],
-                F.lit("name"),
-                x["name"],
-                F.lit("ORCID"),
-                x["ORCID"],
-            ),
-        ),
+            lambda author: F.create_map(
+                F.lit("given"), author["given"],
+                F.lit("family"), author["family"],
+                F.lit("name"), author["name"],
+                F.lit("ORCID"), author["ORCID"],
+                F.lit("affiliations"),
+                F.transform(
+                    author["affiliation"],
+                    lambda aff: F.create_map(
+                        F.lit("name"), aff["name"],
+                        F.lit("ror_id"),
+                        F.expr("element_at(filter(aff.id, x -> x.`id-type` = 'ROR'), 1).id")
+                    )
+                )
+            )
+        )
     ).drop("author")
 
     # set timestamps
