@@ -39,7 +39,8 @@ crossref_schema = StructType([
 
 @dlt.table(
     name="crossref_landing_zone",
-    comment="Landing zone for new Crossref data ingested from S3"
+    comment="Landing zone for new Crossref data ingested from S3",
+    table_properties={'quality': 'bronze'}
 )
 def crossref_landing_zone():
     s3_bucket_path = "s3a://openalex-sandbox/openalex-elt/crossref/"

@@ -4,7 +4,8 @@ from pyspark.sql.window import Window
 
 
 @dlt.table(
-    name="crossref_works", comment="Transformed Crossref data with deduplication"
+    name="crossref_works", comment="Transformed Crossref data with deduplication",
+    table_properties={'quality': 'silver'}
 )
 @dlt.expect_or_drop("valid_DOI", "DOI IS NOT NULL")
 def crossref_works():
