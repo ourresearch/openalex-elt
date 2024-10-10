@@ -1,83 +1,65 @@
-import datetime
-import json
-import logging
 import dlt
-from pyspark.sql.functions import current_timestamp
-from pyspark.sql.types import StructType, StructField, StringType
-import requests
+from pyspark.sql.functions import col
+from pyspark.sql.types import StructType, StructField, StringType, ArrayType, TimestampType
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Define the schema for the raw data
-raw_crossref_schema = StructType([
-    StructField("doi", StringType(), True),
-    StructField("message", StringType(), True)
+crossref_schema = StructType([
+    StructField("DOI", StringType(), True),
+    StructField("title", ArrayType(StringType()), True),
+    StructField("author", ArrayType(StructType([
+        StructField("name", StringType(), True),
+        StructField("family", StringType(), True),
+        StructField("given", StringType(), True),
+        StructField("ORCID", StringType(), True),
+        StructField("affiliation", ArrayType(StructType([
+            StructField("name", StringType(), True),
+            StructField("id", ArrayType(StructType([
+                StructField("id", StringType(), True),
+                StructField("id-type", StringType(), True),
+                StructField("asserted-by", StringType(), True)
+            ])), True)
+        ])), True)
+    ])), True),
+    StructField("abstract", StringType(), True),
+    StructField("type", StringType(), True),
+    StructField("publisher", StringType(), True),
+    StructField("container-title", ArrayType(StringType()), True),
+    StructField("ISSN", ArrayType(StringType()), True),
+    # Include timestamp fields
+    StructField("indexed", StructType([
+        StructField("date-time", TimestampType(), True)
+    ]), True),
+    StructField("created", StructType([
+        StructField("date-time", TimestampType(), True)
+    ]), True),
+    StructField("deposited", StructType([
+        StructField("date-time", TimestampType(), True)
+    ]), True)
 ])
 
-def fetch_recent_crossref_data(yesterday, cursor=None):
-    """
-    Fetch recent Crossref data using the API.
-    """
-    url = "https://api.crossref.org/works"
-    params = {
-        "filter": f"from-index-date:{yesterday},until-index-date:{yesterday}",
-        "rows": 500,
-        "cursor": cursor if cursor else "*",
-        "sort": "indexed",
-        "order": "desc"
-    }
-    response = requests.get(url, params=params, timeout=60)
-    response.raise_for_status()
-    return response.json()
-
-def crossref_data_generator(yesterday):
-    """
-    Generator function that yields batches of data from Crossref API.
-    """
-    cursor = None
-    total_rows = 0
-
-    while True:
-        # Fetch the next batch of data from Crossref
-        data = fetch_recent_crossref_data(yesterday, cursor)
-        items = data.get("message", {}).get("items", [])
-
-        if not items:
-            logger.info("No more items to fetch.")
-            break
-
-        logger.info(f"Fetched {len(items)} rows. Total rows fetched: {total_rows + len(items)}")
-
-        yield [(item['DOI'], json.dumps(item)) for item in items]
-
-        total_rows += len(items)
-
-        # Update the cursor for pagination
-        cursor = data.get("message", {}).get("next-cursor")
-        if not cursor:
-            logger.info("No more pages to fetch.")
-            break
-        break
 
 @dlt.table(
-    comment="Raw Crossref works data (generator-based)",
-    table_properties={"quality": "bronze"}
+    name="crossref_landing_zone",
+    comment="Landing zone for new Crossref data ingested from S3"
+)
+def crossref_landing_zone():
+    s3_bucket_path = "s3a://openalex-sandbox/openalex-elt/crossref/"
+    df = (
+        spark.readStream.format("cloudFiles")
+        .option("cloudFiles.format", "json")
+        .option("cloudFiles.schemaLocation", "dbfs:/pipelines/crossref/schema")
+        .schema(crossref_schema)
+        .load(s3_bucket_path)
+    )
+    return df
+
+
+@dlt.table(
+    name="crossref_raw_data",
+    comment="Accumulated Crossref data with unique DOI and indexed_date pairs"
 )
 def crossref_raw_data():
-    """
-    Create the Delta table by fetching data from Crossref incrementally
-    using a generator. The generator yields batches of data, and we return
-    a DataFrame that contains the full result at the end of processing.
-    """
-    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-
-    all_data = []
-
-    for batch_data in crossref_data_generator(yesterday):
-        all_data.extend(batch_data)
-
-    df = spark.createDataFrame(all_data, schema=raw_crossref_schema) \
-        .withColumn("ingestion_timestamp", current_timestamp())
-
-    return df
+    df = dlt.read_stream("crossref_landing_zone")
+    
+    df = df.withColumn("indexed_date", col("indexed.date-time"))
+    
+    return df.dropDuplicates(["DOI", "indexed_date"]).drop("indexed_date")
