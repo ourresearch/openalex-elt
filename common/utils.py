@@ -1,4 +1,4 @@
-from pyspark import F
+import pyspark.sql.functions as F
 
 
 def explode_dict_column(df, dict_column_name):
