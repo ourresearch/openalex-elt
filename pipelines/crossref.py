@@ -76,16 +76,9 @@ def crossref_raw_data():
 def crossref_works():
     df = dlt.read("crossref_raw_data")
 
-    # deduplicate by DOI, keeping the most recent indexed date DOI
-    df = df.withColumn("indexed_date", F.col("indexed.date-time"))
-    df = df.filter(F.col("indexed_date").isNotNull())
-    window_spec = Window.partitionBy("DOI").orderBy(F.col("indexed_date").desc())
-    df_ranked = df.withColumn("row_number", F.row_number().over(window_spec))
-    df_deduped = df_ranked.filter(F.col("row_number") == 1).drop("row_number")
-
     # set root fields
-    df_deduped = (
-        df_deduped.withColumn("doi", F.col("DOI"))
+    df = (
+        df.withColumn("doi", F.col("DOI"))
         .withColumn("title", F.expr("element_at(title, 1)"))
         .withColumn("type", F.col("type"))
         .withColumn("abstract", F.col("abstract"))
@@ -96,7 +89,7 @@ def crossref_works():
     )
 
     # set authors
-    df_deduped = df_deduped.withColumn(
+    df = df.withColumn(
         "authors",
         F.transform(
             "author",
@@ -111,15 +104,22 @@ def crossref_works():
     ).drop("author")
 
     # set timestamps
-    df_deduped = (
-        df_deduped.withColumn("updated_date", F.col("indexed.date-time"))
+    df = (
+        df.withColumn("updated_date", F.col("indexed.date-time"))
         .withColumn("created_date", F.col("created.date-time"))
         .withColumn("deposited_date", F.col("deposited.date-time"))
         .drop("indexed", "created", "deposited")
     )
 
+    dlt.apply_changes(
+        target="crossref_works",
+        source=df,
+        keys=["DOI"],
+        sequence_by="updated_date",
+    )
+
     # reorder columns
-    df_deduped = df_deduped.select(
+    df = df.select(
         "doi",
         "title",
         "type",
@@ -133,4 +133,4 @@ def crossref_works():
         "created_date",
     )
 
-    return df_deduped
+    return df
