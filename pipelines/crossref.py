@@ -68,13 +68,13 @@ def crossref_raw_data():
     return df.dropDuplicates(["DOI", "indexed_date"]).drop("indexed_date")
 
 
-@dlt.table(
-    name="crossref_works", comment="Transformed Crossref data with deduplication",
-    table_properties={'quality': 'silver'}
+@dlt.view(
+    name="crossref_transformed_view",
+    comment="View of transformed Crossref data"
 )
 @dlt.expect_or_drop("valid_DOI", "DOI IS NOT NULL")
-def crossref_works():
-    df = dlt.read("crossref_raw_data")
+def crossref_transformed_view():
+    df = dlt.read_stream("crossref_raw_data")
 
     # set root fields
     df = (
@@ -111,13 +111,6 @@ def crossref_works():
         .drop("indexed", "created", "deposited")
     )
 
-    dlt.apply_changes(
-        target="crossref_works",
-        source=df,
-        keys=["DOI"],
-        sequence_by="updated_date",
-    )
-
     # reorder columns
     df = df.select(
         "doi",
@@ -134,3 +127,16 @@ def crossref_works():
     )
 
     return df
+
+dlt.create_target_table(
+    name="crossref_works",
+    comment="Final Crossref works table with unique DOIs",
+    table_properties={"quality": "silver"}
+)
+
+dlt.apply_changes(
+    target="crossref_works",
+    source="crossref_transformed_view",
+    keys=["doi"],
+    sequence_by="updated_date"
+)
