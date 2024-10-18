@@ -45,7 +45,7 @@ crossref_schema = StructType([
     table_properties={'quality': 'bronze'}
 )
 def crossref_landing_zone():
-    s3_bucket_path = "s3a://openalex-sandbox/openalex-elt/crossref/new-works"
+    s3_bucket_path = "s3a://openalex-sandbox/openalex-elt/crossref/"
     df = (
         spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "json")
