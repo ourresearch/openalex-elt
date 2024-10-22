@@ -174,7 +174,7 @@ def crossref_transformed_view():
 
     # Extract timestamps
     df = (
-        df.withColumn("updated_date", F.col("parsed.indexed.date-time"))
+        df.withColumn("indexed_date", F.col("parsed.indexed.date-time"))
         .withColumn("created_date", F.col("parsed.created.date-time"))
         .withColumn("deposited_date", F.col("parsed.deposited.date-time"))
     )
@@ -220,5 +220,5 @@ dlt.apply_changes(
     target="crossref_works",
     source="crossref_transformed_view",
     keys=["doi"],
-    sequence_by="updated_date",
+    sequence_by="indexed_date",
 )
