@@ -1,11 +1,32 @@
 import dlt
 import pyspark.sql.functions as F
-from pyspark.sql.types import ArrayType, StringType, StructField, StructType, TimestampType
+from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, StringType, StructField, StructType, TimestampType
 
 
 crossref_schema = StructType([
+    # all crossref fields in same order as the Crossref API response
+    StructField("indexed", StructType([
+        StructField("date-time", TimestampType(), True)
+    ]), True),
+    StructField("reference-count", IntegerType(), True),
+    StructField("publisher", StringType(), True),
+    StructField("content-domain", StructType([
+        StructField("domain", ArrayType(StringType()), True),
+        StructField("crossmark-restriction", BooleanType(), True)
+    ]), True),
+    StructField("short-container-title", ArrayType(StringType()), True),
     StructField("DOI", StringType(), True),
+    StructField("type", StringType(), True),
+    StructField("created", StructType([
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
+        StructField("date-time", TimestampType(), True),
+        StructField("timestamp", IntegerType(), True)
+    ]), True),
+    StructField("update-policy", StringType(), True),
+    StructField("source", StringType(), True),
+    StructField("is-referenced-by-count", IntegerType(), True),
     StructField("title", ArrayType(StringType()), True),
+    StructField("prefix", StringType(), True),
     StructField("author", ArrayType(StructType([
         StructField("name", StringType(), True),
         StructField("family", StringType(), True),
@@ -20,21 +41,60 @@ crossref_schema = StructType([
             ])), True)
         ])), True)
     ])), True),
-    StructField("abstract", StringType(), True),
-    StructField("type", StringType(), True),
-    StructField("publisher", StringType(), True),
+    StructField("member", StringType(), True),
+    StructField("published-online", StructType([
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
+    ]), True),
     StructField("container-title", ArrayType(StringType()), True),
-    StructField("ISSN", ArrayType(StringType()), True),
-    # Include timestamp fields
-    StructField("indexed", StructType([
-        StructField("date-time", TimestampType(), True)
-    ]), True),
-    StructField("created", StructType([
-        StructField("date-time", TimestampType(), True)
-    ]), True),
+    StructField("language", ArrayType(StringType()), True),
+    StructField("link", ArrayType(StructType([
+        StructField("URL", StringType(), True),
+        StructField("content-type", StringType(), True),
+        StructField("content-version", StringType(), True),
+        StructField("intended-application", StringType(), True)
+    ])), True),
     StructField("deposited", StructType([
-        StructField("date-time", TimestampType(), True)
-    ]), True)
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
+        StructField("date-time", TimestampType(), True),
+        StructField("timestamp", IntegerType(), True)
+    ]), True),
+    StructField("score", DoubleType(), True),
+    StructField("resource", StringType(), True),
+    StructField("issued", StructType([
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
+    ]), True),
+    StructField("references-count", IntegerType(), True),
+    StructField("URL", StringType(), True),
+    StructField("ISSN", ArrayType(StringType()), True),
+    StructField("issn-type", ArrayType(StructType([
+        StructField("value", StringType(), True),
+        StructField("type", StringType(), True)
+    ])), True),
+    StructField("published", StructType([
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
+    ]), True),
+    StructField("references", ArrayType(StructType([
+        StructField("key", StringType(), True),
+        StructField("DOI", StringType(), True),
+        StructField("doi-asserted-by", StringType(), True),
+        StructField("article-title", StringType(), True),
+        StructField("volume", StringType(), True),
+        StructField("first-page", StringType(), True),
+        StructField("year", StringType(), True),
+        StructField("journal-title", StringType(), True),
+        StructField("author", StringType(), True),
+        StructField("unstructured", StringType(), True)
+    ])), True),
+    StructField("assertion", ArrayType(StructType([
+        StructField("value", StringType(), True),
+        StructField("order", IntegerType(), True),
+        StructField("name", StringType(), True),
+        StructField("label", StringType(), True),
+        StructField("group", StructType([
+            StructField("name", StringType(), True),
+            StructField("label", StringType(), True)
+        ]), True),
+    ])), True),
 ])
 
 
