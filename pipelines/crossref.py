@@ -6,15 +6,33 @@ from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, S
 crossref_schema = StructType([
     # all crossref fields in same order as the Crossref API response
     StructField("indexed", StructType([
-        StructField("date-time", TimestampType(), True)
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
+        StructField("date-time", TimestampType(), True),
+        StructField("timestamp", IntegerType(), True)
     ]), True),
-    StructField("reference-count", IntegerType(), True),
     StructField("publisher", StringType(), True),
+    StructField("issue", StringType(), True),
+    StructField("license", ArrayType(StructType([
+        StructField("URL", StringType(), True),
+        StructField("start", StructType([
+            StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
+            StructField("date-time", TimestampType(), True),
+            StructField("timestamp", IntegerType(), True)
+        ]), True),
+        StructField("delay-in-days", IntegerType(), True),
+        StructField("content-version", StringType(), True),
+        StructField("identifier", StringType(), True),
+        StructField("type", StringType(), True)
+    ])), True),
     StructField("content-domain", StructType([
         StructField("domain", ArrayType(StringType()), True),
         StructField("crossmark-restriction", BooleanType(), True)
     ]), True),
     StructField("short-container-title", ArrayType(StringType()), True),
+    StructField("published-print", StructType([
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
+    ]), True),
+    StructField("abstract", StringType(), True),
     StructField("DOI", StringType(), True),
     StructField("type", StringType(), True),
     StructField("created", StructType([
@@ -22,15 +40,18 @@ crossref_schema = StructType([
         StructField("date-time", TimestampType(), True),
         StructField("timestamp", IntegerType(), True)
     ]), True),
+    StructField("page", StringType(), True),
     StructField("update-policy", StringType(), True),
     StructField("source", StringType(), True),
     StructField("is-referenced-by-count", IntegerType(), True),
     StructField("title", ArrayType(StringType()), True),
     StructField("prefix", StringType(), True),
+    StructField("volume", StringType(), True),
     StructField("author", ArrayType(StructType([
         StructField("name", StringType(), True),
         StructField("family", StringType(), True),
         StructField("given", StringType(), True),
+        StructField("sequence", StringType(), True),
         StructField("ORCID", StringType(), True),
         StructField("affiliation", ArrayType(StructType([
             StructField("name", StringType(), True),
@@ -42,6 +63,18 @@ crossref_schema = StructType([
         ])), True)
     ])), True),
     StructField("member", StringType(), True),
+    StructField("reference", ArrayType(StructType([
+        StructField("key", StringType(), True),
+        StructField("DOI", StringType(), True),
+        StructField("doi-asserted-by", StringType(), True),
+        StructField("article-title", StringType(), True),
+        StructField("volume", StringType(), True),
+        StructField("first-page", StringType(), True),
+        StructField("year", StringType(), True),
+        StructField("journal-title", StringType(), True),
+        StructField("author", StringType(), True),
+        StructField("unstructured", StringType(), True)
+    ])), True),
     StructField("published-online", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
     ]), True),
@@ -59,11 +92,18 @@ crossref_schema = StructType([
         StructField("timestamp", IntegerType(), True)
     ]), True),
     StructField("score", DoubleType(), True),
-    StructField("resource", StringType(), True),
+    # StructField("resource", StringType(), True),
     StructField("issued", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
     ]), True),
     StructField("references-count", IntegerType(), True),
+    StructField("journal-issue", StructType([
+        StructField("published-print", StructType([
+            StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
+        ]), True),
+        StructField("issue", StringType(), True)
+    ]), True),
+    StructField("alternative-id", ArrayType(StringType()), True),
     StructField("URL", StringType(), True),
     StructField("ISSN", ArrayType(StringType()), True),
     StructField("issn-type", ArrayType(StructType([
@@ -73,18 +113,6 @@ crossref_schema = StructType([
     StructField("published", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
     ]), True),
-    StructField("references", ArrayType(StructType([
-        StructField("key", StringType(), True),
-        StructField("DOI", StringType(), True),
-        StructField("doi-asserted-by", StringType(), True),
-        StructField("article-title", StringType(), True),
-        StructField("volume", StringType(), True),
-        StructField("first-page", StringType(), True),
-        StructField("year", StringType(), True),
-        StructField("journal-title", StringType(), True),
-        StructField("author", StringType(), True),
-        StructField("unstructured", StringType(), True)
-    ])), True),
     StructField("assertion", ArrayType(StructType([
         StructField("value", StringType(), True),
         StructField("order", IntegerType(), True),
