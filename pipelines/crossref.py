@@ -1,14 +1,14 @@
 import dlt
 import pyspark.sql.functions as F
-from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, StringType, StructField, StructType, TimestampType
+from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, TimestampType
 
 
 crossref_schema = StructType([
     # all crossref fields in same order as the Crossref API response
     StructField("indexed", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-        StructField("date-time", TimestampType(), True),
-        StructField("timestamp", IntegerType(), True)
+        StructField("date-time", StringType(), True),
+        StructField("timestamp", LongType(), True)
     ]), True),
     StructField("publisher", StringType(), True),
     StructField("issue", StringType(), True),
@@ -16,8 +16,8 @@ crossref_schema = StructType([
         StructField("URL", StringType(), True),
         StructField("start", StructType([
             StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-            StructField("date-time", TimestampType(), True),
-            StructField("timestamp", IntegerType(), True)
+            StructField("date-time", StringType(), True),
+            StructField("timestamp", LongType(), True)
         ]), True),
         StructField("delay-in-days", IntegerType(), True),
         StructField("content-version", StringType(), True),
@@ -37,8 +37,8 @@ crossref_schema = StructType([
     StructField("type", StringType(), True),
     StructField("created", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-        StructField("date-time", TimestampType(), True),
-        StructField("timestamp", IntegerType(), True)
+        StructField("date-time", StringType(), True),
+        StructField("timestamp", LongType(), True)
     ]), True),
     StructField("page", StringType(), True),
     StructField("update-policy", StringType(), True),
@@ -79,7 +79,7 @@ crossref_schema = StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
     ]), True),
     StructField("container-title", ArrayType(StringType()), True),
-    StructField("language", ArrayType(StringType()), True),
+    StructField("language", StringType(), True),
     StructField("link", ArrayType(StructType([
         StructField("URL", StringType(), True),
         StructField("content-type", StringType(), True),
@@ -88,8 +88,8 @@ crossref_schema = StructType([
     ])), True),
     StructField("deposited", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-        StructField("date-time", TimestampType(), True),
-        StructField("timestamp", IntegerType(), True)
+        StructField("date-time", StringType(), True),
+        StructField("timestamp", LongType(), True)
     ]), True),
     StructField("score", DoubleType(), True),
     # StructField("resource", StringType(), True),
