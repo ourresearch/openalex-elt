@@ -169,10 +169,10 @@ def crossref_transformed_view():
         .withColumn("title", F.expr("element_at(title, 1)"))
         .withColumn("type", F.col("type"))
         .withColumn("abstract", F.col("abstract"))
+        .withColumn("references", F.col("reference"))
         .withColumn("publisher", F.col("publisher"))
-        .withColumn("source_name", F.lower(F.expr("element_at(`container-title`, 1)")))
+        .withColumn("source_name", F.expr("element_at(`container-title`, 1)"))
         .withColumn("source_issns", F.col("ISSN"))
-        .drop("container-title", "ISSN")
     )
 
     # set authors
@@ -188,17 +188,16 @@ def crossref_transformed_view():
                 F.transform(author["affiliation"], lambda aff: aff["name"]).alias("affiliations")
             )
         )
-    ).drop("author")
+    )
 
     # set timestamps
     df = (
         df.withColumn("indexed_date", F.col("indexed.date-time"))
         .withColumn("created_date", F.col("created.date-time"))
         .withColumn("deposited_date", F.col("deposited.date-time"))
-        .drop("indexed", "created", "deposited")
     )
 
-    # reorder columns
+    # select and reorder columns
     df = df.select(
         "doi",
         "title",
@@ -208,6 +207,11 @@ def crossref_transformed_view():
         "source_name",
         "source_issns",
         "abstract",
+        "references",
+        "language",
+        "issue",
+        "page",
+        "volume",
         "deposited_date",
         "indexed_date",
         "created_date",
