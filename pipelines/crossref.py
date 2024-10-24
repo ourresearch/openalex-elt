@@ -1,7 +1,56 @@
+import re
+import unicodedata
+
 import dlt
 import pyspark.sql.functions as F
 from pyspark.sql.types import ArrayType, BooleanType, DoubleType, IntegerType, LongType, StringType, StructField, StructType, TimestampType
 
+
+# normalize title UDF
+
+def clean_html(raw_html):
+    cleanr = re.compile('<\w+.*?>')
+    cleantext = re.sub(cleanr, '', raw_html)
+    return cleantext
+
+def remove_everything_but_alphas(input_string):
+    if input_string:
+        return "".join(e for e in input_string if e.isalpha())
+    return ""
+
+def remove_accents(text):
+    normalized = unicodedata.normalize('NFD', text)
+    return ''.join(char for char in normalized if unicodedata.category(char) != 'Mn')
+
+def normalize_title(title):
+    if not title:
+        return ""
+
+    if isinstance(title, bytes):
+        title = str(title, 'ascii')
+
+    response = title[0:500]
+
+    response = response.lower()
+
+    # handle unicode characters
+    response = remove_accents(response)
+
+    # remove HTML tags
+    response = clean_html(response)
+
+    # remove articles and common prepositions
+    response = re.sub(r"\b(the|a|an|of|to|in|for|on|by|with|at|from)\b", "", response)
+
+    # remove everything except alphabetic characters
+    response = remove_everything_but_alphas(response)
+
+    return response.strip()
+
+normalize_title_udf = F.udf(normalize_title, StringType())
+
+
+# crossref schema
 
 crossref_schema = StructType([
     # all crossref fields in same order as the Crossref API response
@@ -167,6 +216,7 @@ def crossref_transformed_view():
     df = (
         df.withColumn("doi", F.col("DOI"))
         .withColumn("title", F.expr("element_at(title, 1)"))
+        .withColumn("normalized_title", normalize_title_udf(F.col("title")))
         .withColumn("type", F.col("type"))
         .withColumn("abstract", F.col("abstract"))
         .withColumn("references", F.col("reference"))
@@ -201,6 +251,7 @@ def crossref_transformed_view():
     df = df.select(
         "doi",
         "title",
+        "normalized_title",
         "type",
         "authors",
         "publisher",
