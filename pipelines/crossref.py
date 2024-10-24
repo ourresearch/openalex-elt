@@ -29,23 +29,23 @@ def normalize_title(title):
     if isinstance(title, bytes):
         title = str(title, 'ascii')
 
-    response = title[0:500]
+    text = title[0:500]
 
-    response = response.lower()
+    text = text.lower()
 
     # handle unicode characters
-    response = remove_accents(response)
+    text = remove_accents(text)
 
     # remove HTML tags
-    response = clean_html(response)
+    text = clean_html(text)
 
     # remove articles and common prepositions
-    response = re.sub(r"\b(the|a|an|of|to|in|for|on|by|with|at|from)\b", "", response)
+    text = re.sub(r"\b(the|a|an|of|to|in|for|on|by|with|at|from)\b", "", text)
 
     # remove everything except alphabetic characters
-    response = remove_everything_but_alphas(response)
+    text = remove_everything_but_alphas(text)
 
-    return response.strip()
+    return text.strip()
 
 normalize_title_udf = F.udf(normalize_title, StringType())
 
@@ -60,6 +60,10 @@ crossref_schema = StructType([
         StructField("timestamp", LongType(), True)
     ]), True),
     StructField("publisher", StringType(), True),
+    StructField("isbn-type", ArrayType(StructType([
+        StructField("value", StringType(), True),
+        StructField("type", StringType(), True)
+    ])), True),
     StructField("issue", StringType(), True),
     StructField("license", ArrayType(StructType([
         StructField("URL", StringType(), True),
@@ -72,6 +76,11 @@ crossref_schema = StructType([
         StructField("content-version", StringType(), True),
         StructField("identifier", StringType(), True),
         StructField("type", StringType(), True)
+    ])), True),
+    StructField("funder", ArrayType(StructType([
+        StructField("DOI", StringType(), True),
+        StructField("name", StringType(), True),
+        StructField("award", ArrayType(StringType()), True)
     ])), True),
     StructField("content-domain", StructType([
         StructField("domain", ArrayType(StringType()), True),
@@ -88,6 +97,9 @@ crossref_schema = StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
         StructField("date-time", TimestampType(), True),
         StructField("timestamp", LongType(), True)
+    ]), True),
+    StructField("approved", StructType([
+        StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
     ]), True),
     StructField("page", StringType(), True),
     StructField("update-policy", StringType(), True),
@@ -259,6 +271,7 @@ def crossref_transformed_view():
         "source_issns",
         "abstract",
         "references",
+        "funder",
         "language",
         "issue",
         "page",
