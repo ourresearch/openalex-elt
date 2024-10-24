@@ -7,7 +7,7 @@ crossref_schema = StructType([
     # all crossref fields in same order as the Crossref API response
     StructField("indexed", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-        StructField("date-time", StringType(), True),
+        StructField("date-time", TimestampType(), True),
         StructField("timestamp", LongType(), True)
     ]), True),
     StructField("publisher", StringType(), True),
@@ -16,7 +16,7 @@ crossref_schema = StructType([
         StructField("URL", StringType(), True),
         StructField("start", StructType([
             StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-            StructField("date-time", StringType(), True),
+            StructField("date-time", TimestampType(), True),
             StructField("timestamp", LongType(), True)
         ]), True),
         StructField("delay-in-days", IntegerType(), True),
@@ -37,7 +37,7 @@ crossref_schema = StructType([
     StructField("type", StringType(), True),
     StructField("created", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-        StructField("date-time", StringType(), True),
+        StructField("date-time", TimestampType(), True),
         StructField("timestamp", LongType(), True)
     ]), True),
     StructField("page", StringType(), True),
@@ -88,11 +88,11 @@ crossref_schema = StructType([
     ])), True),
     StructField("deposited", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True),
-        StructField("date-time", StringType(), True),
+        StructField("date-time", TimestampType(), True),
         StructField("timestamp", LongType(), True)
     ]), True),
     StructField("score", DoubleType(), True),
-    # StructField("resource", StringType(), True),
+    StructField("resource", StringType(), True),
     StructField("issued", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
     ]), True),
@@ -132,7 +132,7 @@ crossref_schema = StructType([
     table_properties={'quality': 'bronze'}
 )
 def crossref_landing_zone():
-    s3_bucket_path = "s3a://openalex-sandbox/openalex-elt/crossref/"
+    s3_bucket_path = "s3a://openalex-ingest/crossref/new-works"
     df = (
         spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "json")
