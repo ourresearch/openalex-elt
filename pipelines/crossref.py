@@ -153,7 +153,11 @@ crossref_schema = StructType([
         StructField("timestamp", LongType(), True)
     ]), True),
     StructField("score", DoubleType(), True),
-    StructField("resource", StringType(), True),
+    StructField("resource", StructType([
+        StructField("primary", StructType([
+            StructField("URL", StringType(), True)
+        ]), True)
+    ]), True),
     StructField("issued", StructType([
         StructField("date-parts", ArrayType(ArrayType(IntegerType())), True)
     ]), True),
@@ -186,6 +190,10 @@ crossref_schema = StructType([
     ])), True),
 ])
 
+wrapper_schema = StructType([
+    StructField("items", ArrayType(crossref_schema), True)
+])
+
 
 @dlt.table(
     name="crossref_landing_zone",
@@ -193,14 +201,19 @@ crossref_schema = StructType([
     table_properties={'quality': 'bronze'}
 )
 def crossref_landing_zone():
-    s3_bucket_path = "s3a://openalex-ingest/crossref/new-works"
+    s3_bucket_path = "s3a://openalex-ingest/crossref/snapshot-2024-10-24"
+
     df = (
         spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "json")
+        .option("multiLine", "true")
         .option("cloudFiles.schemaLocation", "dbfs:/pipelines/crossref/schema")
-        .schema(crossref_schema)
+        .schema(wrapper_schema)
         .load(s3_bucket_path)
+        .select(F.explode(F.col("items")).alias("record"))
+        .select("record.*")
     )
+
     return df
 
 
