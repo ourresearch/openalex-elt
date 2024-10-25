@@ -26,8 +26,8 @@ def transform_ror_data():
     )
 
     # created and updated dates
-    df = df.withColumn("created_date", F.col("created.date")) \
-        .withColumn("updated_date", F.col("last_modified.date"))
+    df = df.withColumn("created_date", F.col("admin.created.date")) \
+        .withColumn("updated_date", F.col("admin.last_modified.date"))
 
     # website
     df = df.withColumn(
