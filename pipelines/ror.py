@@ -72,6 +72,5 @@ dlt.apply_changes(
     target="transformed_ror_data",
     source="transformed_ror_view",
     keys=["id"],
-    sequence_by="updated_date",
-    apply_as_deletes=False
+    sequence_by="updated_date"
 )
