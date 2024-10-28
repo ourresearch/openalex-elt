@@ -201,7 +201,7 @@ wrapper_schema = StructType([
     table_properties={'quality': 'bronze'}
 )
 def crossref_landing_zone():
-    s3_bucket_path = "s3a://openalex-ingest/crossref/snapshot-2024-10-24"
+    s3_bucket_path = "s3a://openalex-ingest/crossref"
 
     df = (
         spark.readStream.format("cloudFiles")

@@ -3,7 +3,7 @@ from pyspark.sql.functions import col
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType
 
 
-doaj_schema = StructType([
+schema = StructType([
     StructField("header", StructType([
         StructField("identifier", StringType(), True),
         StructField("datestamp", StringType(), True),
@@ -26,14 +26,14 @@ doaj_schema = StructType([
     ]))
 ])
 
-
 @dlt.table(
     comment="Parsed DOAJ article XML data from S3 into Delta table"
 )
 def doaj_articles():
     return (
         spark.read.format("xml")
-        .schema(doaj_schema)
+        .option("rowTag", "record")
+        .schema(schema)
         .load("s3://openalex-ingest/doaj/articles")
         .select(
             col("header.identifier").alias("article_id"),

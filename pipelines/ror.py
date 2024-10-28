@@ -17,7 +17,7 @@ def load_raw_ror_data():
     comment="Transformed ROR data for change capture."
 )
 def transform_ror_data():
-    df = dlt.read("raw_ror_data")
+    df = dlt.read_stream("raw_ror_data")
 
     # name
     df = df.withColumn(
@@ -29,17 +29,17 @@ def transform_ror_data():
     df = df.withColumn("created_date", F.col("admin.created.date")) \
         .withColumn("updated_date", F.col("admin.last_modified.date"))
 
-    # website
-    df = df.withColumn(
-        "website",
-        F.expr("filter(links, x -> x.type == 'website')[0].url")
-    )
+    # # website
+    # df = df.withColumn(
+    #     "website",
+    #     F.expr("filter(links, x -> x.type == 'website')[0].url")
+    # )
 
-    # wikipedia
-    df = df.withColumn(
-        "wikipedia",
-        F.expr("filter(links, x -> x.type == 'wikipedia')[0].url")
-    )
+    # # wikipedia
+    # df = df.withColumn(
+    #     "wikipedia",
+    #     F.expr("filter(links, x -> x.type == 'wikipedia')[0].url")
+    # )
 
     df = df.select(
         "id",
@@ -52,8 +52,7 @@ def transform_ror_data():
         F.expr("locations[0].geonames_id").alias("geonames_id"),
         "types",
         "relationships",
-        "website",
-        "wikipedia",
+        "links",
         "established",
         "external_ids",
         "created_date",
