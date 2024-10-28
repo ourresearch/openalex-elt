@@ -1,5 +1,3 @@
-from struct import Struct
-
 import dlt
 from pyspark.sql.types import StructType, StructField, StringType, ArrayType, IntegerType, BooleanType, LongType
 import pyspark.sql.functions as F
@@ -123,15 +121,6 @@ pubmed_schema = StructType([
     ]), True)
 ])
 
-simple_pubmed_schema = StructType([
-    StructField("MedlineCitation", StructType([
-        StructField("PMID", StructType([
-            StructField("_Version", StringType(), True),
-            StructField("_VALUE", LongType(), True)
-        ]), True),
-    ]), True)
-])
-
 
 @dlt.table(
     name="pubmed_landing_zone",
@@ -167,54 +156,90 @@ def pubmed_raw_data():
 
     return df
 
+
 @dlt.view(
     name="pubmed_transformed_view",
     comment="Transformed view of the raw PubMed data",
 )
 def pubmed_transformed_view():
-    df = dlt.read_stream("pubmed_raw_data")
+    # Helper functions for cleaner code
+    def create_date_column(year_col, month_col, day_col):
+        return F.to_date(
+            F.concat_ws("-",
+                        F.col(year_col),
+                        F.col(month_col),
+                        F.col(day_col)
+                        )
+        )
 
-    df.withColumn("title", df.MedlineCitation.Article.ArticleTitle)
-    df.withColumn("abstract", df.MedlineCitation.Article.Abstract.AbstractText)
-    df.withColumn("authors", F.expr("transform(MedlineCitation.Article.AuthorList.Author, x -> x.LastName + ', ' + x.ForeName)"))
-    df.withColumn("source_title", df.MedlineCitation.Article.Journal.Title)
-    df.withColumn("source_issns", df.MedlineCitation.Article.Journal.ISSN._VALUE)
-    df.withColumn("type", df.MedlineCitation.Article.PublicationTypeList.PublicationType._VALUE)
-    df.withColumn("volume", df.MedlineCitation.Article.Journal.JournalIssue.Volume)
-    df.withColumn("issue", df.MedlineCitation.Article.Journal.JournalIssue.Issue)
+    def extract_id_by_type(id_type):
+        return F.expr(f"filter(PubmedData.ArticleIdList.ArticleId, x -> x._IdType = '{id_type}')[0]._VALUE")
 
-    # ids
-    df.withColumn("pmid", df.MedlineCitation.PMID._VALUE)
-    df = df.withColumn("doi",
-                       F.expr("filter(PubmedData.ArticleIdList.ArticleId, x -> x._IdType = 'doi')[0]._VALUE")
-                       )
+    # Start transformation
+    df = (dlt.read_stream("pubmed_raw_data")
+          # basic article metadata
+          .withColumn("title", F.col("MedlineCitation.Article.ArticleTitle"))
+          .withColumn("abstract", F.col("MedlineCitation.Article.Abstract.AbstractText"))
+          .withColumn("type", F.col("MedlineCitation.Article.PublicationTypeList.PublicationType._VALUE"))
 
-    df = df.withColumn("pmc_id",
-                       F.expr("filter(PubmedData.ArticleIdList.ArticleId, x -> x._IdType = 'pmc')[0]._VALUE")
-                       )
+          # author information
+          .withColumn("authors", F.expr("""
+            transform(
+                MedlineCitation.Article.AuthorList.Author, 
+                x -> x.LastName + ', ' + x.ForeName
+            )
+        """))
 
-    # timestamps
-    df.withColumn("publication_date", F.to_date(F.concat_ws("-", df.MedlineCitation.Article.Journal.JournalIssue.PubDate.Year, df.MedlineCitation.Article.Journal.JournalIssue.PubDate.Month, df.MedlineCitation.Article.Journal.JournalIssue.PubDate.Day)))
-    df.withColumn("created_date", F.to_date(F.concat_ws("-", df.MedlineCitation.DateCompleted.Year, df.MedlineCitation.DateCompleted.Month, df.MedlineCitation.DateCompleted.Day)))
-    df.withColumn("accepted_date", F.to_date(F.concat_ws("-", df.MedlineCitation.DateRevised.Year, df.MedlineCitation.DateRevised.Month, df.MedlineCitation.DateRevised.Day)))
-    df.withColumn("updated_date", F.to_date(F.concat_ws("-", df.MedlineCitation.DateRevised.Year, df.MedlineCitation.DateRevised.Month, df.MedlineCitation.DateRevised.Day)))
+          # journal information
+          .withColumn("source_title", F.col("MedlineCitation.Article.Journal.Title"))
+          .withColumn("source_issns", F.col("MedlineCitation.Article.Journal.ISSN._VALUE"))
+          .withColumn("volume", F.col("MedlineCitation.Article.Journal.JournalIssue.Volume"))
+          .withColumn("issue", F.col("MedlineCitation.Article.Journal.JournalIssue.Issue"))
+
+          # ids
+          .withColumn("doi", extract_id_by_type("doi"))
+          .withColumn("pmc_id", extract_id_by_type("pmc"))
+
+          # dates
+          .withColumn("publication_date",
+                      create_date_column(
+                          "MedlineCitation.Article.Journal.JournalIssue.PubDate.Year",
+                          "MedlineCitation.Article.Journal.JournalIssue.PubDate.Month",
+                          "MedlineCitation.Article.Journal.JournalIssue.PubDate.Day"
+                      )
+                      )
+          .withColumn("created_date",
+                      create_date_column(
+                          "MedlineCitation.DateCompleted.Year",
+                          "MedlineCitation.DateCompleted.Month",
+                          "MedlineCitation.DateCompleted.Day"
+                      )
+                      )
+          .withColumn("updated_date",
+                      create_date_column(
+                          "MedlineCitation.DateRevised.Year",
+                          "MedlineCitation.DateRevised.Month",
+                          "MedlineCitation.DateRevised.Day"
+                      )
+                      )
+          )
 
     return df.select(
-        "pmid",
-        "title",
-        "abstract",
+        # ids
+        "pmid", "doi", "pmc_id",
+
+        # core article metadata
+        "title", "abstract", "type",
+
+        # author information
         "authors",
-        "source_title",
-        "source_issns",
-        "type",
-        "volume",
-        "issue",
-        "doi",
-        "pmc_id",
-        "publication_date",
-        "created_date",
-        "accepted_date",
-        "updated_date"
+
+        # journal metadata
+        "source_title", "source_issns",
+        "volume", "issue",
+
+        # dates
+        "publication_date", "created_date", "updated_date"
     )
 
 
