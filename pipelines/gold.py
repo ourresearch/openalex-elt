@@ -12,13 +12,17 @@ def merged_works():
     pubmed_df = dlt.read("pubmed_works")
     crossref_df = dlt.read("crossref_works")
 
-    # first match: join by DOI where available
+    # convert DOIs to lowercase for case-insensitive join
+    pubmed_df = pubmed_df.withColumn("doi_lower", F.lower(F.col("doi")))
+    crossref_df = crossref_df.withColumn("doi_lower", F.lower(F.col("doi")))
+
+    # first match: join by lowercase DOI where available
     doi_matched = (
         pubmed_df
         .join(
             crossref_df,
-            (pubmed_df.doi == crossref_df.doi) &
-            (F.col("pubmed_df.doi").isNotNull()),
+            (pubmed_df.doi_lower == crossref_df.doi_lower) &
+            (pubmed_df.doi.isNotNull()),
             "full_outer"
         )
     )
@@ -52,7 +56,7 @@ def merged_works():
         )
     )
 
-    # combine DOI matches and title matches
+    # Combine DOI matches and title matches
     all_matches = doi_matches.union(title_matched)
 
     # select and coalesce fields
@@ -82,7 +86,7 @@ def merged_works():
         )
     )
 
-    # add row quality score based on available fields
+    # ddd row quality score based on available fields
     final_df = final_df.withColumn(
         "quality_score",
         (
