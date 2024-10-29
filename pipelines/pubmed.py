@@ -117,6 +117,17 @@ pubmed_schema = StructType([
                 StructField("_VALUE", StringType(), True),
                 StructField("_IdType", StringType(), True)
             ])), True)
+        ]), True),
+        StructField("ReferenceList", StructType([
+            StructField("Reference", ArrayType(StructType([
+                StructField("Citation", StringType(), True),
+                StructField("ArticleIdList", StructType([
+                    StructField("ArticleId", ArrayType(StructType([
+                        StructField("_VALUE", StringType(), True),
+                        StructField("_IdType", StringType(), True)
+                    ])), True)
+                ]), True)
+            ])), True)
         ]), True)
     ]), True)
 ])
@@ -199,6 +210,8 @@ def pubmed_transformed_view():
           # ids
           .withColumn("doi", extract_id_by_type("doi"))
           .withColumn("pmc_id", extract_id_by_type("pmc"))
+
+          .withColumn("references", F.col("PubmedData.ReferenceList"))
 
           # dates
           .withColumn("publication_date",
