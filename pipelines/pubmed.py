@@ -139,7 +139,7 @@ pubmed_schema = StructType([
     table_properties={'quality': 'bronze'}
 )
 def pubmed_landing_zone():
-    s3_bucket_path = "s3a://openalex-ingest/pubmed/sample"
+    s3_bucket_path = "s3a://openalex-ingest/pubmed"
 
     df = (
         spark.readStream.format("cloudFiles")
@@ -194,12 +194,7 @@ def pubmed_transformed_view():
           .withColumn("type", F.col("MedlineCitation.Article.PublicationTypeList.PublicationType._VALUE"))
 
           # author information
-          .withColumn("authors", F.expr("""
-            transform(
-                MedlineCitation.Article.AuthorList.Author, 
-                x -> x.LastName + ', ' + x.ForeName
-            )
-        """))
+          .withColumn("authors", F.col("MedlineCitation.Article.AuthorList"))
 
           # journal information
           .withColumn("source_title", F.col("MedlineCitation.Article.Journal.Title"))
