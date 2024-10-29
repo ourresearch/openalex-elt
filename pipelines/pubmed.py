@@ -273,7 +273,7 @@ def pubmed_transformed_view():
         # basic article metadata
         .withColumn("title", F.col("MedlineCitation.Article.ArticleTitle"))
         .withColumn(
-            "normalized_tital",
+            "normalized_title",
             normalize_title_udf(F.col("MedlineCitation.Article.ArticleTitle")),
         )
         .withColumn("abstract", F.col("MedlineCitation.Article.Abstract.AbstractText"))
@@ -282,7 +282,25 @@ def pubmed_transformed_view():
             F.col("MedlineCitation.Article.PublicationTypeList.PublicationType._VALUE"),
         )
         # author information
-        .withColumn("authors", F.col("MedlineCitation.Article.AuthorList"))
+        .withColumn(
+            "authors",
+            F.expr("""
+                        transform(MedlineCitation.Article.AuthorList.Author, author -> struct(
+                            author.ForeName as given,
+                            author.LastName as family,
+                            author.Initials as initials,
+                            transform(
+                                case when author.AffiliationInfo is not null 
+                                    then array(author.AffiliationInfo.Affiliation) 
+                                    else array() 
+                                end, 
+                                aff -> aff
+                            ) as affiliations
+                        ))
+                    """)
+        )
+        # references
+        .withColumn("references", F.col("PubmedData.ReferenceList"))
         # journal information
         .withColumn("source_title", F.col("MedlineCitation.Article.Journal.Title"))
         .withColumn(
@@ -330,6 +348,7 @@ def pubmed_transformed_view():
         "doi",
         "pmc_id",
         "title",
+        "normalized_title",
         "abstract",
         "type",
         "authors",
@@ -337,6 +356,7 @@ def pubmed_transformed_view():
         "source_issns",
         "volume",
         "issue",
+        "references",
         "publication_date",
         "created_date",
         "updated_date",
