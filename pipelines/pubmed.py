@@ -126,6 +126,10 @@ pubmed_schema = StructType([
                     StructField("LastName", StringType(), True),
                     StructField("ForeName", StringType(), True),
                     StructField("Initials", StringType(), True),
+                    StructField("Identifier", ArrayType(StructType([
+                        StructField("_VALUE", StringType(), True),
+                        StructField("_Source", StringType(), True)
+                    ])), True),
                     StructField("_ValidYN", StringType(), True),
                     StructField("AffiliationInfo", ArrayType(StructType([
                         StructField("Affiliation", StringType(), True)
@@ -133,6 +137,14 @@ pubmed_schema = StructType([
                 ])), True)
             ]), True),
             StructField("Language", StringType(), True),
+            StructField("GrantList", StructType([
+                StructField("Grant", ArrayType(StructType([
+                    StructField("GrantID", StringType(), True),
+                    StructField("Acronym", StringType(), True),
+                    StructField("Agency", StringType(), True),
+                    StructField("Country", StringType(), True)
+                ])), True)
+            ]), True),
             StructField("PublicationTypeList", StructType([
                 StructField("PublicationType", ArrayType(StructType([
                     StructField("_VALUE", StringType(), True),
