@@ -79,6 +79,9 @@ mesh_heading_schema = StructType([
 
 pubmed_schema = StructType([
     StructField("MedlineCitation", StructType([
+        StructField("_Status", StringType(), True),
+        StructField("_IndexingMethod", StringType(), True),
+        StructField("_Owner", StringType(), True),
         StructField("PMID", StructType([
             StructField("_Version", StringType(), True),
             StructField("_VALUE", LongType(), True)
@@ -117,6 +120,11 @@ pubmed_schema = StructType([
             StructField("Pagination", StructType([
                 StructField("MedlinePgn", StringType(), True)
             ]), True),
+            StructField("ELocationID", ArrayType(StructType([
+                StructField("_EIdType", StringType(), True),
+                StructField("_ValidYN", StringType(), True),
+                StructField("_VALUE", StringType(), True)
+            ])), True),
             StructField("Abstract", StructType([
                 StructField("AbstractText", StringType(), True)
             ]), True),
@@ -131,9 +139,9 @@ pubmed_schema = StructType([
                         StructField("_Source", StringType(), True)
                     ])), True),
                     StructField("_ValidYN", StringType(), True),
-                    StructField("AffiliationInfo", ArrayType(StructType([
+                    StructField("AffiliationInfo", StructType([
                         StructField("Affiliation", StringType(), True)
-                    ])), True)
+                    ]), True)
                 ])), True)
             ]), True),
             StructField("Language", StringType(), True),
