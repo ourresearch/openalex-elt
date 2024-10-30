@@ -1,75 +1,46 @@
-import dlt
 from pyspark.sql import functions as F
+from delta.tables import DeltaTable
+
 
 s3_path = "s3://openalex-ingest/ror/current/ror_snapshot.parquet"
+target_table = "transformed_ror_data"
 
-@dlt.table(
-    name="raw_ror_data",
-    comment="Initial ingestion of ROR data from S3",
-    table_properties={"quality": "bronze"}
-)
-def load_raw_ror_data():
-    df = spark.read.parquet(s3_path)
-    return df
+raw_df = spark.read.parquet(s3_path)
 
-@dlt.view(
-    name="transformed_ror_view",
-    comment="Transformed ROR data for change capture."
-)
-def transform_ror_data():
-    df = dlt.read("raw_ror_data")
-
-    # name
-    df = df.withColumn(
-        "name",
-        F.expr("filter(names, x -> array_contains(x.types, 'label'))[0].value")
-    )
-
-    # created and updated dates
-    df = df.withColumn("created_date", F.col("admin.created.date")) \
-        .withColumn("updated_date", F.col("admin.last_modified.date"))
-
-    # # website
-    # df = df.withColumn(
-    #     "website",
-    #     F.expr("filter(links, x -> x.type == 'website')[0].url")
-    # )
-
-    # # wikipedia
-    # df = df.withColumn(
-    #     "wikipedia",
-    #     F.expr("filter(links, x -> x.type == 'wikipedia')[0].url")
-    # )
-
-    df = df.select(
-        "id",
-        "name",
-        F.expr("locations[0].geonames_details.country_code").alias("country_code"),
-        F.expr("locations[0].geonames_details.country_name").alias("country_name"),
-        F.expr("locations[0].geonames_details.name").alias("location_name"),
-        F.expr("locations[0].geonames_details.lat").alias("latitude"),
-        F.expr("locations[0].geonames_details.lng").alias("longitude"),
-        F.expr("locations[0].geonames_id").alias("geonames_id"),
-        "types",
-        "relationships",
-        "links",
-        "established",
-        "external_ids",
-        "created_date",
-        "updated_date"
-    )
-
-    return df
-
-dlt.create_target_table(
-    name="transformed_ror_data",
-    comment="Up-to-date ROR data with unique IDs",
-    table_properties={"quality": "silver"}
+transformed_df = raw_df.withColumn(
+    "name",
+    F.expr("filter(names, x -> array_contains(x.types, 'label'))[0].value")
 )
 
-dlt.apply_changes(
-    target="transformed_ror_data",
-    source="transformed_ror_view",
-    keys=["id"],
-    sequence_by="updated_date"
+transformed_df = transformed_df.withColumn("created_date", F.col("admin.created.date")) \
+    .withColumn("updated_date", F.col("admin.last_modified.date"))
+
+final_df = transformed_df.select(
+    "id",
+    "name",
+    F.expr("locations[0].geonames_details.country_code").alias("country_code"),
+    F.expr("locations[0].geonames_details.country_name").alias("country_name"),
+    F.expr("locations[0].geonames_details.name").alias("location_name"),
+    F.expr("locations[0].geonames_details.lat").alias("latitude"),
+    F.expr("locations[0].geonames_details.lng").alias("longitude"),
+    F.expr("locations[0].geonames_id").alias("geonames_id"),
+    "types",
+    "relationships",
+    "links",
+    "established",
+    "external_ids",
+    "created_date",
+    "updated_date"
 )
+
+if not spark.catalog._jcatalog.tableExists(target_table):
+    final_df.write.format("delta").saveAsTable(target_table)
+else:
+    delta_table = DeltaTable.forName(spark, target_table)
+
+    delta_table.alias("target").merge(
+        final_df.alias("source"),
+        "target.id = source.id"
+    ).whenMatchedUpdateAll(
+        condition="source.updated_date > target.updated_date"
+    ).whenNotMatchedInsertAll().execute()
