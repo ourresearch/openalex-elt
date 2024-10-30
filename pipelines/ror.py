@@ -3,7 +3,7 @@ from delta.tables import DeltaTable
 
 
 s3_path = "s3://openalex-ingest/ror/current/ror_snapshot.parquet"
-target_table = "transformed_ror_data"
+target_table_path = "/mnt/delta/transformed_ror_data"
 
 raw_df = spark.read.parquet(s3_path)
 
@@ -33,14 +33,18 @@ final_df = transformed_df.select(
     "updated_date"
 )
 
-if not spark.catalog._jcatalog.tableExists(target_table):
-    final_df.write.format("delta").saveAsTable(target_table)
-else:
-    delta_table = DeltaTable.forName(spark, target_table)
+if DeltaTable.isDeltaTable(spark, target_table_path):
+    dlt = DeltaTable.forPath(spark, target_table_path)
+    max_update_date = dlt.toDF().agg(F.max("updated_date")).collect()[0][0]
 
-    delta_table.alias("target").merge(
-        final_df.alias("source"),
-        "target.id = source.id"
-    ).whenMatchedUpdateAll(
-        condition="source.updated_date > target.updated_date"
-    ).whenNotMatchedInsertAll().execute()
+    new_data = final_df.filter(F.col("updated_date") > max_update_date)
+
+    if not new_data.isEmpty():
+        # merge the new/changed data
+        dlt.alias("ror").merge(
+            new_data.alias("new_data"),
+            "new_data.id = ror.id"
+        ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
+else:
+    # save as new table
+    final_df.write.format("delta").mode("overwrite").save(target_table_path)
