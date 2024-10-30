@@ -17,7 +17,7 @@ def load_raw_ror_data():
     comment="Transformed ROR data for change capture."
 )
 def transform_ror_data():
-    df = dlt.read_stream("raw_ror_data")
+    df = dlt.read("raw_ror_data")
 
     # name
     df = df.withColumn(
