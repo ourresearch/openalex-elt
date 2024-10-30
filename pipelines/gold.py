@@ -9,8 +9,8 @@ from pyspark.sql.window import Window
     table_properties={"quality": "gold"}
 )
 def merged_works():
-    pubmed_df = dlt.read("pubmed_works")
-    crossref_df = dlt.read("crossref_works")
+    pubmed_df = dlt.read("pubmed.pubmed_works")
+    crossref_df = dlt.read("crossref.crossref_works")
 
     # convert DOIs to lowercase for case-insensitive join
     pubmed_df = pubmed_df.withColumn("doi_lower", F.lower(F.col("doi")))

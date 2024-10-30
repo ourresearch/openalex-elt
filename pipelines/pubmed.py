@@ -220,6 +220,7 @@ def pubmed_landing_zone():
         .option("cloudFiles.format", "xml")
         .option("cloudFiles.schemaLocation", "dbfs:/pipelines/pubmed/schema")
         .option("rowTag", "PubmedArticle")
+        .option("ignoreMissingFiles", "true")
         .schema(pubmed_schema)
         .load(s3_bucket_path)
     )
