@@ -280,7 +280,7 @@ def pubmed_transformed_view():
         .withColumn("abstract", F.col("MedlineCitation.Article.Abstract.AbstractText"))
         .withColumn(
             "type",
-            F.col("MedlineCitation.Article.PublicationTypeList.PublicationType._VALUE"),
+            F.col("MedlineCitation.Article.PublicationTypeList.PublicationType._VALUE")[0]
         )
         # author information
         .withColumn(
