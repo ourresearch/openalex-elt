@@ -290,22 +290,41 @@ def pubmed_transformed_view():
                             author.ForeName as given,
                             author.LastName as family,
                             author.Initials as initials,
-                            transform(
-                                case when author.AffiliationInfo is not null 
-                                    then array(author.AffiliationInfo.Affiliation) 
-                                    else array() 
-                                end, 
-                                aff -> aff
-                            ) as affiliations
+                            case 
+                                when author.AffiliationInfo.Affiliation is not null 
+                                then array(author.AffiliationInfo.Affiliation)
+                                else array()
+                            end as affiliations
                         ))
                     """)
+        )
+        .withColumn(
+            "ids",
+            F.struct(
+                extract_id_by_type("pubmed").alias("pmid"),
+                extract_id_by_type("pmc").alias("pmc_id"),
+                extract_id_by_type("pii").alias("pii"),
+                extract_id_by_type("mid").alias("mid"),
+                extract_id_by_type("doi").alias("doi")
+            )
         )
         # references
         .withColumn("references", F.col("PubmedData.ReferenceList"))
         # journal information
         .withColumn("source_title", F.col("MedlineCitation.Article.Journal.Title"))
         .withColumn(
-            "source_issns", F.col("MedlineCitation.Article.Journal.ISSN._VALUE")
+            "source_issns",
+            F.expr("""
+                        array_distinct(
+                            filter(
+                                array(
+                                    MedlineCitation.Article.Journal.ISSN._VALUE,
+                                    MedlineCitation.MedlineJournalInfo.ISSNLinking
+                                ),
+                                x -> x is not null and trim(x) != ''
+                            )
+                        )
+                    """)
         )
         .withColumn(
             "volume", F.col("MedlineCitation.Article.Journal.JournalIssue.Volume")
@@ -346,8 +365,7 @@ def pubmed_transformed_view():
 
     return df.select(
         "pmid",
-        "doi",
-        "pmc_id",
+        "ids",
         "title",
         "normalized_title",
         "abstract",
