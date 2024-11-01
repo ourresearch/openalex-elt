@@ -309,7 +309,23 @@ def pubmed_transformed_view():
             )
         )
         # references
-        .withColumn("references", F.col("PubmedData.ReferenceList"))
+        .withColumn("references",
+                    F.expr("""
+                        transform(
+                            PubmedData.ReferenceList.Reference,
+                            ref -> struct(
+                                ref.Citation as citation,
+                                transform(
+                                    ref.ArticleIdList.ArticleId,
+                                    id -> struct(
+                                        id._IdType as id_type,
+                                        id._VALUE as id_value
+                                    )
+                                ) as ids
+                            )
+                        )
+                    """)
+                    )
         # journal information
         .withColumn("source_title", F.col("MedlineCitation.Article.Journal.Title"))
         .withColumn(
@@ -332,10 +348,6 @@ def pubmed_transformed_view():
         .withColumn(
             "issue", F.col("MedlineCitation.Article.Journal.JournalIssue.Issue")
         )
-        # ids
-        .withColumn("doi", extract_id_by_type("doi"))
-        .withColumn("pmc_id", extract_id_by_type("pmc"))
-        .withColumn("references", F.col("PubmedData.ReferenceList"))
         # dates
         .withColumn(
             "publication_date",
