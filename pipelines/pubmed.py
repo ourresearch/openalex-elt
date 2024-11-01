@@ -301,11 +301,11 @@ def pubmed_transformed_view():
         .withColumn(
             "ids",
             F.struct(
-                extract_id_by_type("pubmed").alias("pmid"),
-                extract_id_by_type("pmc").alias("pmc_id"),
-                extract_id_by_type("pii").alias("pii"),
-                extract_id_by_type("mid").alias("mid"),
-                extract_id_by_type("doi").alias("doi")
+                F.col(extract_id_by_type("pubmed")).cast("long").alias("pmid"),
+                F.lower(extract_id_by_type("pmc")).alias("pmcid"),
+                F.lower(extract_id_by_type("pii")).alias("pii"),
+                F.lower(extract_id_by_type("mid")).alias("mid"),
+                F.lower(extract_id_by_type("doi")).alias("doi")
             )
         )
         # references
