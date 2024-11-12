@@ -56,27 +56,25 @@ normalize_title_udf = F.udf(normalize_title, StringType())
 
 
 repository_schema = StructType([
-    StructField("ns0:record", StructType([
-        StructField("ns0:header", StructType([
-            StructField("ns0:identifier", StringType(), True),
-            StructField("ns0:datestamp", TimestampType(), True),
-            StructField("ns0:setSpec", ArrayType(StringType()), True)
-        ]), True),
-        StructField("ns0:metadata", StructType([
-            StructField("ns1:dc", StructType([
-                StructField("dc:title", StringType(), True),
-                StructField("dc:creator", ArrayType(StringType()), True),
-                StructField("dc:contributor", ArrayType(StringType()), True),
-                StructField("dc:subject", ArrayType(StringType()), True),
-                StructField("dc:description", ArrayType(StringType()), True),
-                StructField("dc:date", ArrayType(StringType()), True),
-                StructField("dc:type", StringType(), True),
-                StructField("dc:identifier", ArrayType(StringType()), True),
-                StructField("dc:language", StringType(), True),
-                StructField("dc:format", ArrayType(StringType()), True),
-                StructField("dc:publisher", StringType(), True),
-                StructField("dc:rights", ArrayType(StringType()), True)
-            ]), True)
+    StructField("ns0:header", StructType([
+        StructField("ns0:identifier", StringType(), True),
+        StructField("ns0:datestamp", TimestampType(), True),
+        StructField("ns0:setSpec", ArrayType(StringType()), True)
+    ]), True),
+    StructField("ns0:metadata", StructType([
+        StructField("ns1:dc", StructType([
+            StructField("dc:title", StringType(), True),
+            StructField("dc:creator", ArrayType(StringType()), True),
+            StructField("dc:contributor", ArrayType(StringType()), True),
+            StructField("dc:subject", ArrayType(StringType()), True),
+            StructField("dc:description", ArrayType(StringType()), True),
+            StructField("dc:date", ArrayType(StringType()), True),
+            StructField("dc:type", StringType(), True),
+            StructField("dc:identifier", ArrayType(StringType()), True),
+            StructField("dc:language", StringType(), True),
+            StructField("dc:format", ArrayType(StringType()), True),
+            StructField("dc:publisher", StringType(), True),
+            StructField("dc:rights", ArrayType(StringType()), True)
         ]), True)
     ]), True)
 ])
@@ -88,13 +86,13 @@ repository_schema = StructType([
     table_properties={"quality": "bronze"}
 )
 def repository_landing_zone():
-    s3_bucket_path = "s3://openalex-ingest/repositories/d0016e792c202bc7391131f39b7382f6"
+    s3_bucket_path = "s3://openalex-ingest/repositories/"
 
     df = (
         spark.readStream.format("cloudFiles")
         .option("cloudFiles.format", "xml")
         .option("cloudFiles.schemaLocation", "dbfs:/pipelines/repository/schema")
-        .option("rowTag", "oai_records")
+        .option("rowTag", "ns0:record")
         .schema(repository_schema)
         .load(s3_bucket_path)
     )
@@ -110,8 +108,8 @@ def repository_raw_data():
     df = dlt.read_stream("repository_landing_zone")
 
     # Deduplicate by identifier and datestamp
-    df = df.withColumn("identifier", F.col("ns0:record.ns0:header.ns0:identifier"))
-    df = df.withColumn("updated_date", F.col("ns0:record.ns0:header.ns0:datestamp"))
+    df = df.withColumn("identifier", F.col("ns0:header.ns0:identifier"))
+    df = df.withColumn("updated_date", F.col("ns0:header.ns0:datestamp"))
     df = df.dropDuplicates(["identifier", "updated_date"])
 
     return df
@@ -122,102 +120,33 @@ def repository_raw_data():
     comment="Transformed view of the raw repository data"
 )
 def repository_transformed_view():
+    df = dlt.read_stream("repository_raw_data")
     df = (
-        dlt.read_stream("repository_raw_data")
-        # Basic metadata
-        .withColumn("title", F.col("ns0:record.ns0:metadata.ns1:dc.dc:title"))
+        df
+        # basic metadata
+        .withColumn("title", F.col("ns0:metadata.ns1:dc.dc:title"))
         .withColumn("normalized_title", normalize_title_udf(F.col("title")))
-        .withColumn("type", F.col("ns0:record.ns0:metadata.ns1:dc.dc:type"))
+        .withColumn("type", F.col("ns0:metadata.ns1:dc.dc:type"))
 
-        # Extract first description that's not empty or null
-        .withColumn("description",
-                    F.expr("""
-                array_join(
-                    filter(
-                        ns0:record.ns0:metadata.ns1:dc.dc:description,
-                        x -> x is not null and trim(x) != ''
-                    ),
-                    ' '
-                )
-            """)
-                    )
+        # authors
+        .withColumn("authors", F.col("ns0:metadata.ns1:dc.dc:creator"))
 
-        # Authors and contributors
-        .withColumn("authors",
-                    F.expr("""
-                transform(
-                    ns0:record.ns0:metadata.ns1:dc.dc:creator,
-                    author -> struct(
-                        author as name,
-                        null as affiliations
-                    )
-                )
-            """)
-                    )
-        .withColumn("contributors",
-                    F.expr("""
-                filter(
-                    ns0:record.ns0:metadata.ns1:dc.dc:contributor,
-                    x -> x is not null and trim(x) != ''
-                )
-            """)
-                    )
-
-        # Identifiers
-        .withColumn("ids",
-                    F.struct(
-                        F.col("identifier").alias("repository_id"),
-                        F.expr("""
-                    filter(
-                        ns0:record.ns0:metadata.ns1:dc.dc:identifier,
-                        x -> x like 'http://dx.doi.org/%' or x like 'https://doi.org/%'
-                    )[0]
-                """).alias("doi")
-                    )
-                    )
-
-        # Subjects and keywords
-        .withColumn("subjects",
-                    F.expr("""
-                filter(
-                    ns0:record.ns0:metadata.ns1:dc.dc:subject,
-                    x -> x is not null and trim(x) != ''
-                )
-            """)
-                    )
-
-        # Publication info
-        .withColumn("publisher", F.col("ns0:record.ns0:metadata.ns1:dc.dc:publisher"))
-        .withColumn("language", F.col("ns0:record.ns0:metadata.ns1:dc.dc:language"))
-
-        # Dates
-        .withColumn("publication_date",
-                    F.expr("""
-                to_date(
-                    filter(
-                        ns0:record.ns0:metadata.ns1:dc.dc:date,
-                        x -> x is not null and length(x) >= 4
-                    )[0]
-                )
-            """)
-                    )
+        # publication info
+        .withColumn("publisher", F.col("ns0:metadata.ns1:dc.dc:publisher"))
+        .withColumn("language", F.col("ns0:metadata.ns1:dc.dc:language"))
     )
 
     return df.select(
         "identifier",
-        "ids",
         "title",
         "normalized_title",
-        "description",
-        "type",
         "authors",
-        "contributors",
-        "subjects",
         "publisher",
         "language",
-        "publication_date",
+        "type",
         "updated_date"
     )
+
 
 
 dlt.create_target_table(
