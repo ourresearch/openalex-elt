@@ -121,8 +121,23 @@ def repository_raw_data():
 )
 def repository_transformed_view():
     df = dlt.read_stream("repository_raw_data")
+
+    valid_date_pattern = r"^\d{4}(-\d{2}-\d{2})?$"
     df = (
         df
+        # repository
+        .withColumn(
+            "repository",
+            F.lower(
+                F.when(
+                    F.col("identifier").startswith("oai:"),
+                    F.split(F.col("identifier"), ":").getItem(1)
+                ).otherwise(
+                    F.split(F.col("identifier"), ":").getItem(0)
+                )
+            )
+        )
+
         # basic metadata
         .withColumn("title", F.col("ns0:metadata.ns1:dc.dc:title"))
         .withColumn("normalized_title", normalize_title_udf(F.col("title")))
@@ -131,19 +146,69 @@ def repository_transformed_view():
         # authors
         .withColumn("authors", F.col("ns0:metadata.ns1:dc.dc:creator"))
 
+        # ids
+        .withColumn("identifiers", F.col("ns0:metadata.ns1:dc.dc:identifier"))
+        .withColumn(
+            "doi",
+            F.element_at(
+                F.filter(
+                    F.transform(
+                        F.col("identifiers"),
+                        lambda x: F.when(
+                            F.lower(x).startswith("doi:"),
+                            F.lower(F.substring(x, 5, 1000))
+                        ).when(
+                            F.lower(x).startswith("https://doi.org/"),
+                            F.lower(F.substring(x, 17, 1000))
+                        )
+                    ),
+                    lambda x: x.isNotNull()
+                ),
+                1
+            )
+        )
+        .withColumn(
+            "ids",
+            F.struct(
+                F.col("doi").alias("doi")
+            )
+        )
+
         # publication info
         .withColumn("publisher", F.col("ns0:metadata.ns1:dc.dc:publisher"))
         .withColumn("language", F.col("ns0:metadata.ns1:dc.dc:language"))
+        .withColumn("rights", F.col("ns0:metadata.ns1:dc.dc:rights"))
+
+        # published_date
+        .withColumn("published_date_raw", F.element_at(F.col("ns0:metadata.ns1:dc.dc:date"), 1))
+        .withColumn(
+            "published_date",
+            F.to_date(
+                F.when(
+                    F.col("published_date_raw").rlike(valid_date_pattern),  # Match valid formats
+                    F.when(
+                        F.length(F.col("published_date_raw")) == 4,  # Year-only format
+                        F.concat(F.col("published_date_raw"), F.lit("-01-01"))  # Default to January 1st for year-only
+                    ).otherwise(F.col("published_date_raw"))  # Use the full date if available
+                ),
+                "yyyy-MM-dd"
+            )
+        )
     )
 
     return df.select(
         "identifier",
+        "repository",
         "title",
         "normalized_title",
         "authors",
+        "identifiers",
+        "ids",
         "publisher",
         "language",
         "type",
+        "rights",
+        "published_date",
         "updated_date"
     )
 
